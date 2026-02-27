@@ -30,7 +30,12 @@
   <input type="text" id="nameInput" placeholder="Your name">
 
   <label>Select your available slots (drag to select multiple)</label>
+  <p style="margin-bottom: 16px;">Tip: first mark all slots as available, then "white out" busy slots</p>
+
   <div class="grid" id="myGrid"></div>
+
+  <label style="color: orange;">Make sure to download and email your schedule to the organizer </label>
+  <p style="margin-bottom: 16px;">(this website does not save any data)</p>
 
   <button class="action" onclick="downloadAvailability()">Download Availability</button>
 </div>
@@ -56,6 +61,7 @@ function buildGrid(containerId) {
   const slots = [];
   let dragging = false;
   let dragMode = false;
+  let lastIndex = -1;
 
   for (let i = 0; i < SLOT_COUNT; i++) {
     const lbl = document.createElement('div');
@@ -69,17 +75,24 @@ function buildGrid(containerId) {
     cell.addEventListener('mousedown', (e) => {
       e.preventDefault();
       dragging = true;
+      lastIndex = i;
       dragMode = !cell.classList.contains('selected');
       cell.classList.toggle('selected', dragMode);
     });
     cell.addEventListener('mouseenter', () => {
-      if (dragging) cell.classList.toggle('selected', dragMode);
+      if (!dragging) return;
+      const lo = Math.min(lastIndex, i);
+      const hi = Math.max(lastIndex, i);
+      for (let j = lo; j <= hi; j++) {
+        slots[j].classList.toggle('selected', dragMode);
+      }
+      lastIndex = i;
     });
     container.appendChild(cell);
     slots.push(cell);
   }
 
-  document.addEventListener('mouseup', () => { dragging = false; });
+  document.addEventListener('mouseup', () => { dragging = false; lastIndex = -1; });
   return slots;
 }
 

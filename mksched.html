@@ -75,6 +75,7 @@ function buildGrid(containerId) {
   const slots = [];
   let dragging = false;
   let dragMode = false;
+  let lastIndex = -1;
 
   for (let i = 0; i < SLOT_COUNT; i++) {
     const lbl = document.createElement('div');
@@ -88,17 +89,24 @@ function buildGrid(containerId) {
     cell.addEventListener('mousedown', (e) => {
       e.preventDefault();
       dragging = true;
+      lastIndex = i;
       dragMode = !cell.classList.contains('selected');
       cell.classList.toggle('selected', dragMode);
     });
     cell.addEventListener('mouseenter', () => {
-      if (dragging) cell.classList.toggle('selected', dragMode);
+      if (!dragging) return;
+      const lo = Math.min(lastIndex, i);
+      const hi = Math.max(lastIndex, i);
+      for (let j = lo; j <= hi; j++) {
+        slots[j].classList.toggle('selected', dragMode);
+      }
+      lastIndex = i;
     });
     container.appendChild(cell);
     slots.push(cell);
   }
 
-  document.addEventListener('mouseup', () => { dragging = false; });
+  document.addEventListener('mouseup', () => { dragging = false; lastIndex = -1; });
   return slots;
 }
 
@@ -165,7 +173,7 @@ function generateSchedule() {
   const results = document.getElementById('results');
   let html = '';
   if (assigned.length > 0) {
-    html += '<table><tr><th>Time</th><th>Colleague</th></tr>';
+    html += '<table><tr><th>Time</th><th>Meet with</th></tr>';
     for (const a of assigned) {
       html += `<tr><td>${slotLabel(a.slot)}</td><td>${esc(a.name)}</td></tr>`;
     }
