@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generate Schedule</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; max-width: 700px; margin: 0 auto; }
+  h1 { text-align: center; margin-bottom: 16px; font-size: 1.4rem; }
+
+  .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  label { font-weight: 600; display: block; margin-bottom: 4px; }
+
+  .grid { display: grid; grid-template-columns: 80px 200px; gap: 2px; margin-bottom: 16px; user-select: none; }
+  .grid .time-label { font-size: 0.8rem; text-align: right; padding: 6px 8px 6px 0; line-height: 1; display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
+  .grid .slot { height: 20px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fafafa; transition: background 0.1s; }
+  .grid .slot:hover { background: #e8f0fe; }
+  .grid .slot.selected { background: #4285f4; border-color: #3367d6; }
+
+  button.action { display: inline-block; padding: 10px 20px; background: #4285f4; color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  button.action:hover { background: #3367d6; }
+
+  .upload-area { margin: 16px 0; }
+  .upload-area input[type="file"] { margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; font-size: 0.9rem; }
+  th { background: #f0f0f0; }
+  .unscheduled { margin-top: 12px; color: #c0392b; font-weight: 600; }
+  .all-scheduled { margin-top: 12px; color: #27ae60; font-weight: 600; }
+
+  #results { margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<h1>Generate Schedule</h1>
+
+<div class="card">
+  <label>Visitor's available 30-min slots (8:00 – 18:00)</label>
+  <div class="grid" id="visitorGrid"></div>
+
+  <div class="upload-area">
+    <label>Upload colleague .json files</label>
+    <input type="file" id="fileInput" multiple accept=".json">
+    <div id="fileList" style="margin-top:6px; font-size:0.85rem; color:#555;"></div>
+  </div>
+
+  <button class="action" onclick="generateSchedule()">Generate Schedule</button>
+
+  <div id="results"></div>
+</div>
+
+<script>
+const SLOT_COUNT = 20;
+const colleagues = [];
+
+function slotLabel(i) {
+  const totalMinutes = 8 * 60 + i * 30;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const hh = String(h).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  const endMin = totalMinutes + 30;
+  const eh = Math.floor(endMin / 60);
+  const em = endMin % 60;
+  return `${hh}:${mm}\u2013${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+}
+
+function buildGrid(containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const slots = [];
+  let dragging = false;
+  let dragMode = false;
+
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'time-label';
+    lbl.textContent = slotLabel(i);
+    container.appendChild(lbl);
+
+    const cell = document.createElement('div');
+    cell.className = 'slot';
+    cell.dataset.index = i;
+    cell.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      dragMode = !cell.classList.contains('selected');
+      cell.classList.toggle('selected', dragMode);
+    });
+    cell.addEventListener('mouseenter', () => {
+      if (dragging) cell.classList.toggle('selected', dragMode);
+    });
+    container.appendChild(cell);
+    slots.push(cell);
+  }
+
+  document.addEventListener('mouseup', () => { dragging = false; });
+  return slots;
+}
+
+const visitorSlots = buildGrid('visitorGrid');
+
+function getSlotValues(slotElements) {
+  return slotElements.map(s => s.classList.contains('selected'));
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  colleagues.length = 0;
+  const listEl = document.getElementById('fileList');
+  listEl.textContent = '';
+  const names = [];
+  for (const file of e.target.files) {
+    try {
+      const text = await file.text();
+      const obj = JSON.parse(text);
+      if (obj.name && Array.isArray(obj.slots) && obj.slots.length === SLOT_COUNT) {
+        colleagues.push(obj);
+        names.push(obj.name);
+      } else {
+        names.push(file.name + ' (invalid)');
+      }
+    } catch {
+      names.push(file.name + ' (error)');
+    }
+  }
+  listEl.textContent = 'Loaded: ' + names.join(', ');
+});
+
+function generateSchedule() {
+  const visitorAvail = getSlotValues(visitorSlots);
+  if (!visitorAvail.some(Boolean)) { alert('Mark the visitor\'s available slots first.'); return; }
+  if (colleagues.length === 0) { alert('Upload at least one colleague file.'); return; }
+
+  const entries = colleagues.map(c => {
+    const overlap = [];
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      if (c.slots[i] && visitorAvail[i]) overlap.push(i);
+    }
+    return { name: c.name, overlap };
+  });
+
+  entries.sort((a, b) => a.overlap.length - b.overlap.length);
+
+  const assigned = [];
+  const usedSlots = new Set();
+  const unscheduled = [];
+
+  for (const entry of entries) {
+    const available = entry.overlap.filter(s => !usedSlots.has(s));
+    if (available.length > 0) {
+      const slot = available[0];
+      usedSlots.add(slot);
+      assigned.push({ name: entry.name, slot });
+    } else {
+      unscheduled.push(entry.name);
+    }
+  }
+
+  assigned.sort((a, b) => a.slot - b.slot);
+
+  const results = document.getElementById('results');
+  let html = '';
+  if (assigned.length > 0) {
+    html += '<table><tr><th>Time</th><th>Colleague</th></tr>';
+    for (const a of assigned) {
+      html += `<tr><td>${slotLabel(a.slot)}</td><td>${esc(a.name)}</td></tr>`;
+    }
+    html += '</table>';
+  }
+  if (unscheduled.length > 0) {
+    html += `<p class="unscheduled">Unscheduled: ${unscheduled.map(esc).join(', ')}</p>`;
+  }
+  if (unscheduled.length === 0 && assigned.length > 0) {
+    html += '<p class="all-scheduled">All colleagues scheduled!</p>';
+  }
+  results.innerHTML = html;
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

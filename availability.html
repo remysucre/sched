@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Availability</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; max-width: 700px; margin: 0 auto; }
+  h1 { text-align: center; margin-bottom: 16px; font-size: 1.4rem; }
+
+  .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  label { font-weight: 600; display: block; margin-bottom: 4px; }
+  input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 16px; }
+
+  .grid { display: grid; grid-template-columns: 80px 200px; gap: 2px; margin-bottom: 16px; user-select: none; }
+  .grid .time-label { font-size: 0.8rem; text-align: right; padding: 6px 8px 6px 0; line-height: 1; display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
+  .grid .slot { height: 20px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fafafa; transition: background 0.1s; }
+  .grid .slot:hover { background: #e8f0fe; }
+  .grid .slot.selected { background: #4285f4; border-color: #3367d6; }
+
+  button.action { display: inline-block; padding: 10px 20px; background: #4285f4; color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  button.action:hover { background: #3367d6; }
+</style>
+</head>
+<body>
+
+<h1>My Availability</h1>
+
+<div class="card">
+  <input type="text" id="nameInput" placeholder="Your name">
+
+  <label>Select your available slots (try dragging your mouse across)</label>
+  <div class="grid" id="myGrid"></div>
+
+  <button class="action" onclick="downloadAvailability()">Download Availability</button>
+</div>
+
+<script>
+const SLOT_COUNT = 20;
+
+function slotLabel(i) {
+  const totalMinutes = 8 * 60 + i * 30;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const hh = String(h).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  const endMin = totalMinutes + 30;
+  const eh = Math.floor(endMin / 60);
+  const em = endMin % 60;
+  return `${hh}:${mm}\u2013${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+}
+
+function buildGrid(containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const slots = [];
+  let dragging = false;
+  let dragMode = false;
+
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'time-label';
+    lbl.textContent = slotLabel(i);
+    container.appendChild(lbl);
+
+    const cell = document.createElement('div');
+    cell.className = 'slot';
+    cell.dataset.index = i;
+    cell.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      dragMode = !cell.classList.contains('selected');
+      cell.classList.toggle('selected', dragMode);
+    });
+    cell.addEventListener('mouseenter', () => {
+      if (dragging) cell.classList.toggle('selected', dragMode);
+    });
+    container.appendChild(cell);
+    slots.push(cell);
+  }
+
+  document.addEventListener('mouseup', () => { dragging = false; });
+  return slots;
+}
+
+const mySlots = buildGrid('myGrid');
+
+function getSlotValues(slotElements) {
+  return slotElements.map(s => s.classList.contains('selected'));
+}
+
+function downloadAvailability() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { alert('Please enter your name.'); return; }
+  const data = { name, slots: getSlotValues(mySlots) };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
