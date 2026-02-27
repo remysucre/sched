@@ -10,7 +10,7 @@ Schedule 30-minute 1-1 meetings between a visitor and department colleagues.
 
 ## For the organizer
 
-1. Open https://remy.wang/sched/schedule.html
+1. Open https://remy.wang/sched/mksched.html
 2. Mark the visitor's available time slots
 3. Upload all colleague `.json` files
 4. Click **Generate Schedule** to see the result
