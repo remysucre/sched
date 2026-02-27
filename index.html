@@ -14,11 +14,10 @@
   label { font-weight: 600; display: block; margin-bottom: 4px; }
   input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 16px; }
 
-  .grid { display: grid; grid-template-columns: 80px 200px; gap: 2px; margin-bottom: 16px; user-select: none; }
-  .grid .time-label { font-size: 0.8rem; text-align: right; padding: 6px 8px 6px 0; line-height: 1; display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
-  .grid .slot { height: 20px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fafafa; transition: background 0.1s; }
+  .grid { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; user-select: none; max-width: 280px; }
+  .grid .slot { height: 28px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fafafa; transition: background 0.1s; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #555; }
   .grid .slot:hover { background: #e8f0fe; }
-  .grid .slot.selected { background: #4285f4; border-color: #3367d6; }
+  .grid .slot.selected { background: #4285f4; border-color: #3367d6; color: #fff; }
 
   button.action { display: inline-block; padding: 10px 20px; background: #4285f4; color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 4px; }
   button.action:hover { background: #3367d6; }
@@ -64,14 +63,10 @@ function buildGrid(containerId) {
   let lastIndex = -1;
 
   for (let i = 0; i < SLOT_COUNT; i++) {
-    const lbl = document.createElement('div');
-    lbl.className = 'time-label';
-    lbl.textContent = slotLabel(i);
-    container.appendChild(lbl);
-
     const cell = document.createElement('div');
     cell.className = 'slot';
     cell.dataset.index = i;
+    cell.textContent = slotLabel(i);
     cell.addEventListener('mousedown', (e) => {
       e.preventDefault();
       dragging = true;
