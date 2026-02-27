@@ -6,7 +6,7 @@ Schedule 30-minute 1-1 meetings between a visitor and department colleagues.
 
 1. Open `availability.html`
 2. Enter your name and select available time slots (drag to select multiple)
-3. Click **Download Availability** and send the `.json` file to the organizer
+3. Click **Download Availability** and email the `.json` file to the organizer
 
 ## Organizer Flow
 
