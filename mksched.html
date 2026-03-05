@@ -6,7 +6,7 @@
 <title>Generate Schedule</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; max-width: 700px; margin: 0 auto; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; max-width: 900px; margin: 0 auto; }
   h1 { text-align: center; margin-bottom: 16px; font-size: 1.4rem; }
 
   .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -24,13 +24,20 @@
   .upload-area { margin: 16px 0; }
   .upload-area input[type="file"] { margin-top: 4px; }
 
-  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-  th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; font-size: 0.9rem; }
-  th { background: #f0f0f0; }
   .unscheduled { margin-top: 12px; color: #c0392b; font-weight: 600; }
   .all-scheduled { margin-top: 12px; color: #27ae60; font-weight: 600; }
 
   #results { margin-top: 16px; }
+
+  .sched-grid { display: grid; gap: 2px; margin-top: 12px; overflow-x: auto; }
+  .sched-grid .hdr { font-weight: 600; font-size: 0.75rem; text-align: center; padding: 4px 2px; word-break: break-word; }
+  .sched-grid .time-label { font-size: 0.75rem; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; white-space: nowrap; }
+  .sched-grid .cell { height: 26px; border: 1px solid #e0e0e0; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+  .sched-grid .cell.avail { background: #a8d5a2; }
+  .sched-grid .cell.unavail { background: #f5f5f5; }
+  .sched-grid .cell.meeting { background: #4285f4; color: #fff; font-weight: 600; }
+  .sched-grid .cell.visitor-on { background: #bbdefb; }
+  .sched-grid .cell.visitor-off { background: #f5f5f5; }
 </style>
 </head>
 <body>
@@ -165,21 +172,63 @@ function generateSchedule() {
 
   assigned.sort((a, b) => a.slot - b.slot);
 
+  // Build assignment lookup: slot index -> colleague name
+  const assignmentMap = {};
+  for (const a of assigned) assignmentMap[a.slot] = a.name;
+
+  const sortedColleagues = [...colleagues].sort((a, b) => a.name.localeCompare(b.name));
+  const colCount = 2 + sortedColleagues.length; // time + visitor + colleagues
+  const colWidth = Math.max(60, Math.min(90, Math.floor(600 / colCount)));
+
   const results = document.getElementById('results');
   let html = '';
-  if (assigned.length > 0) {
-    html += '<table><tr><th>Time</th><th>Meet with</th></tr>';
-    for (const a of assigned) {
-      html += `<tr><td>${slotLabel(a.slot)}</td><td>${esc(a.name)}</td></tr>`;
-    }
-    html += '</table>';
+
+  // Grid layout
+  html += `<div class="sched-grid" style="grid-template-columns: 90px ${colWidth}px repeat(${sortedColleagues.length}, ${colWidth}px);">`;
+
+  // Header row
+  html += '<div class="hdr"></div>';
+  html += '<div class="hdr">Schedule</div>';
+  for (const c of sortedColleagues) {
+    html += `<div class="hdr">${esc(c.name)}</div>`;
   }
+
+  // One row per time slot
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    // Time label
+    html += `<div class="time-label">${slotLabel(i)}</div>`;
+
+    // Visitor schedule column: show meeting assignment or visitor availability
+    if (assignmentMap[i] !== undefined) {
+      html += `<div class="cell meeting">${esc(assignmentMap[i])}</div>`;
+    } else if (visitorAvail[i]) {
+      html += '<div class="cell visitor-on"></div>';
+    } else {
+      html += '<div class="cell visitor-off"></div>';
+    }
+
+    // Colleague columns
+    for (const c of sortedColleagues) {
+      html += `<div class="cell ${c.slots[i] ? 'avail' : 'unavail'}"></div>`;
+    }
+  }
+
+  html += '</div>';
+
+  // Legend
+  html += '<div style="margin-top:10px; font-size:0.75rem; display:flex; gap:12px; flex-wrap:wrap;">';
+  html += '<span><span style="display:inline-block;width:12px;height:12px;background:#4285f4;border-radius:2px;vertical-align:middle;"></span> Meeting</span>';
+  html += '<span><span style="display:inline-block;width:12px;height:12px;background:#bbdefb;border-radius:2px;vertical-align:middle;"></span> Visitor free</span>';
+  html += '<span><span style="display:inline-block;width:12px;height:12px;background:#a8d5a2;border-radius:2px;vertical-align:middle;"></span> Colleague available</span>';
+  html += '</div>';
+
   if (unscheduled.length > 0) {
     html += `<p class="unscheduled">Unscheduled: ${unscheduled.map(esc).join(', ')}</p>`;
   }
   if (unscheduled.length === 0 && assigned.length > 0) {
     html += '<p class="all-scheduled">All colleagues scheduled!</p>';
   }
+
   results.innerHTML = html;
 }
 
